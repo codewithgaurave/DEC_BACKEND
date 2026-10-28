@@ -4,6 +4,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import Inquiry from '../models/Inquiry.model.js'
 import { SEED_INQUIRIES } from '../data/seedInquiries.js'
+import { uploadToCloudinary } from '../config/cloudinary.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -17,9 +18,9 @@ const ensureDirectoryExists = (dirPath) => {
 }
 
 /**
- * Helper to convert base64 CV into a physical file on disk in uploads/resumes
+ * Helper to convert base64 CV into a physical file on disk in uploads/resumes and Cloudinary
  */
-const saveBase64ResumeToFile = (cvData, applicantName) => {
+const saveBase64ResumeToFile = async (cvData, applicantName) => {
   if (!cvData || !cvData.base64) return cvData
 
   try {
@@ -54,10 +55,19 @@ const saveBase64ResumeToFile = (cvData, applicantName) => {
 
     fs.writeFileSync(filePath, fileBuffer)
 
+    let cloudUrl = null
+    try {
+      const cld = await uploadToCloudinary(filePath, 'resumes')
+      cloudUrl = cld.secure_url
+    } catch (cldErr) {
+      console.warn('⚠️ Cloudinary resume upload warning:', cldErr.message)
+    }
+
     return {
       filename: cvData.filename || uniqueFilename,
       contentType: cvData.contentType || 'application/pdf',
-      url: `/uploads/resumes/${uniqueFilename}`,
+      url: cloudUrl || `/uploads/resumes/${uniqueFilename}`,
+      localUrl: `/uploads/resumes/${uniqueFilename}`,
       base64: '', // clear huge payload from DB
     }
   } catch (err) {
@@ -67,7 +77,7 @@ const saveBase64ResumeToFile = (cvData, applicantName) => {
 }
 
 /**
- * @desc    Upload Candidate Resume File (Multipart)
+ * @desc    Upload Candidate Resume File (Multipart) to Server & Cloudinary
  * @route   POST /api/inquiries/upload-resume
  * @access  Public
  */
@@ -82,6 +92,13 @@ export const uploadResumeFile = async (req, res) => {
     }
 
     const relativeUrl = `/uploads/resumes/${req.file.filename}`
+    let cloudUrl = null
+    try {
+      const cld = await uploadToCloudinary(req.file.path, 'resumes')
+      cloudUrl = cld.secure_url
+    } catch (cldErr) {
+      console.warn('⚠️ Cloudinary resume upload warning:', cldErr.message)
+    }
 
     return res.status(200).json({
       success: true,
@@ -92,7 +109,9 @@ export const uploadResumeFile = async (req, res) => {
         storedName: req.file.filename,
         contentType: req.file.mimetype,
         size: req.file.size,
-        url: relativeUrl,
+        url: cloudUrl || relativeUrl,
+        localUrl: relativeUrl,
+        cloudUrl: cloudUrl || null,
       },
     })
   } catch (error) {
@@ -321,7 +340,7 @@ export const createInquiry = async (req, res, next) => {
     // Ensure CV is written to physical file in uploads/resumes if provided as base64
     let processedCv = cv || null
     if (processedCv && processedCv.base64) {
-      processedCv = saveBase64ResumeToFile(processedCv, fullName)
+      processedCv = await saveBase64ResumeToFile(processedCv, fullName)
     }
 
     const newInquiry = await Inquiry.create({
