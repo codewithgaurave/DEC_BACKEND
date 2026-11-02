@@ -11,7 +11,8 @@
     "seed:services": "node src/utils/seedServices.js",
     "seed:projects": "node src/utils/seedProjects.js",
     "seed:gallery": "node src/utils/seedGallery.js",
-    "seed:blogs": "node src/utils/seedBlogs.js"
+    "seed:blogs": "node src/utils/seedBlogs.js",
+    "seed:signatures": "node src/utils/seedSignatures.js"
   },
   "keywords": [
     "dec",
