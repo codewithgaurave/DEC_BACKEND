@@ -8,6 +8,7 @@ import blogRoutes from './blog.routes.js'
 import inquiryRoutes from './inquiry.routes.js'
 import settingRoutes from './setting.routes.js'
 import signatureRoutes from './signature.routes.js'
+import cmsRoutes from './cms.routes.js'
 
 const router = Router()
 
@@ -26,5 +27,6 @@ router.use('/settings', settingRoutes)
 router.use('/setting', settingRoutes)
 router.use('/signatures', signatureRoutes)
 router.use('/signature', signatureRoutes)
+router.use('/cms', cmsRoutes)
 
 export default router
